@@ -1,22 +1,39 @@
-import { config } from "dotenv"
-config()
+const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
+const endpoint = process.env["AZURE_OPENAI_ENDPOINT"] ;
+const azureApiKey = process.env["AZURE_OPENAI_API_KEY"] ;
+const readline = require("readline");
 
-import { OpenAI } from "openai"
-import readline from "readline"
+async function main() {
+  console.log("== Azure OpenAI Chat ==");
 
-const openAi = new OpenAI({ apiKey: process.env.API_KEY })
+  const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
+  const deploymentId = "gpt-35-turbo";
 
-const userInterface = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-})
-
-userInterface.prompt()
-userInterface.on("line", async input => {
-  const response = await openAi.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: input }],
+  const userInterface = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
   })
-  console.log(response.data.choices[0].message.content)
-  userInterface.prompt()
-})
+
+  // Initial conversation starter (optional)
+  let conversationHistory = []; // Array to store conversation history
+
+  userInterface.prompt();
+
+  userInterface.on("line", async (userInput) => {
+    conversationHistory.push({ role: "user", content: userInput });
+
+    try {
+      const result = await client.getChatCompletions(deploymentId, conversationHistory);
+      conversationHistory.push({ role: "assistant", content: result.choices[0].message.content });
+      console.log(result.choices[0].message.content);
+    } catch (error) {
+      console.error("Error during chat completion:", error);
+    }
+
+    userInterface.prompt();
+  });
+}
+
+main().catch((err) => {
+  console.error("The sample encountered an error:", err);
+});
