@@ -1,39 +1,55 @@
+const express = require('express');
+const bodyParser = require('body-parser');  // Added body-parser
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
-const endpoint = process.env["AZURE_OPENAI_ENDPOINT"] ;
-const azureApiKey = process.env["AZURE_OPENAI_API_KEY"] ;
-const readline = require("readline");
 
-async function main() {
-  console.log("== Azure OpenAI Chat ==");
+const endpoint = process.env["AZURE_OPENAI_ENDPOINT"];
+const azureApiKey = process.env["AZURE_OPENAI_API_KEY"];
+const deploymentId = "gpt-35-turbo"; // Update if using a different deployment
 
-  const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
-  const deploymentId = "gpt-35-turbo";
+// Initialize OpenAI client
+const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
 
-  const userInterface = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  })
+// Conversation history (initially empty)
+let conversationHistory = [];
 
-  // Initial conversation starter (optional)
-  let conversationHistory = []; // Array to store conversation history
+const app = express();
 
-  userInterface.prompt();
+// Added body-parser middleware to handle JSON requests
+app.use(bodyParser.json());
 
-  userInterface.on("line", async (userInput) => {
-    conversationHistory.push({ role: "user", content: userInput });
-
-    try {
-      const result = await client.getChatCompletions(deploymentId, conversationHistory);
-      conversationHistory.push({ role: "assistant", content: result.choices[0].message.content });
-      console.log(result.choices[0].message.content);
-    } catch (error) {
-      console.error("Error during chat completion:", error);
-    }
-
-    userInterface.prompt();
-  });
-}
-
-main().catch((err) => {
-  console.error("The sample encountered an error:", err);
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // Replace with your frontend origin
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // Allowed methods
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allowed headers
+  next();
 });
+
+// Route to handle chat requests
+app.post('/chat', async (req, res) => {
+  // Log the received request body for debugging
+  console.log('Received request body:', req.body);
+
+  // Get user input from the request body
+  const userInput = req.body.message;
+
+  // Add user input to conversation history
+  conversationHistory.push({ role: "user", content: userInput });
+
+  try {
+    // Call OpenAI API with conversation history
+    const response = await client.getChatCompletions(deploymentId, conversationHistory);
+
+    // Update conversation history with AI response
+    conversationHistory.push({ role: "assistant", content: response.choices[0].message.content });
+
+    // Send AI response back to user
+    res.json({ message: response.choices[0].message.content });
+  } catch (error) {
+    console.error("Error during chat completion:", error);
+    res.status(500).json({ message: "Error occurred, please try again later." });
+  }
+});
+
+// Start the Express server
+const port = process.env.PORT || 3001;
+app.listen(port, () => console.log(`Server listening on port ${port}`));
