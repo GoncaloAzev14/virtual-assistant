@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 const Chat = () => {
-
   const [conversationHistory, setConversationHistory] = useState([]);
   const [userInput, setUserInput] = useState('');
 
@@ -28,16 +27,43 @@ const Chat = () => {
         throw new Error(`Error sending message: ${response.statusText}`);
       }
 
-      const data = await response.json();  // Parse JSON response
+      const data = await response.json(); // Parse JSON response
 
       // Update conversation history with user input and AI response
       setConversationHistory([...conversationHistory, { role: 'user', content: userInput }]);
       setConversationHistory([...conversationHistory, { role: 'assistant', content: data.message }]);
 
+      // Speak the AI response (text-to-speech functionality)
+      speakText(data.message);
+
       setUserInput('');
     } catch (error) {
       console.error('Error during chat interaction:', error);
     }
+  };
+
+  const speakText = async (text) => {
+    if (!window.speechSynthesis) {
+      console.error('Speech Synthesis API not supported');
+      alert('Your browser does not support text-to-speech functionality.');
+      return;
+    }
+
+    const speech = new SpeechSynthesisUtterance(text);
+    // Set voice options (optional)
+    speech.voice = speechSynthesis.getVoices()[0]; // Default voice
+    speech.pitch = 1; // Adjust pitch (1 is normal)
+    speech.rate = 1; // Adjust playback rate (1 is normal)
+
+    speechSynthesis.speak(speech);  // Start speaking
+
+    // Add event listeners for speech events (optional)
+    speech.onend = () => {
+      console.log('Speech finished');
+    };
+    speech.onerror = (error) => {
+      console.error('Error during speech synthesis:', error);
+    };
   };
 
   return (
