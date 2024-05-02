@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { franc } from 'franc-min';
+import langs from 'langs';
 
 const Chat = () => {
   const [conversationHistory, setConversationHistory] = useState([]);
@@ -33,8 +35,9 @@ const Chat = () => {
       setConversationHistory([...conversationHistory, { role: 'user', content: userInput }]);
       setConversationHistory([...conversationHistory, { role: 'assistant', content: data.message }]);
 
-      // Speak the AI response (text-to-speech functionality)
-      speakText(data.message);
+      // Speak the AI response with language detection
+      const detectedLanguage = franc(data.message);
+      speakText(data.message, detectedLanguage);
 
       setUserInput('');
     } catch (error) {
@@ -42,7 +45,7 @@ const Chat = () => {
     }
   };
 
-  const speakText = async (text) => {
+  const speakText = async (text, detectedLanguage) => {
     if (!window.speechSynthesis) {
       console.error('Speech Synthesis API not supported');
       alert('Your browser does not support text-to-speech functionality.');
@@ -50,20 +53,21 @@ const Chat = () => {
     }
 
     const speech = new SpeechSynthesisUtterance(text);
-    // Set voice options (optional)
-    speech.voice = speechSynthesis.getVoices()[0]; // Default voice
-    speech.pitch = 1; // Adjust pitch (1 is normal)
-    speech.rate = 1; // Adjust playback rate (1 is normal)
 
-    speechSynthesis.speak(speech);  // Start speaking
+    // Convert ISO 639-3 code to ISO 639-1
+    const langISO1 = langs.where('3', detectedLanguage)['1'];
 
-    // Add event listeners for speech events (optional)
-    speech.onend = () => {
-      console.log('Speech finished');
-    };
-    speech.onerror = (error) => {
-      console.error('Error during speech synthesis:', error);
-    };
+    // Find a matching voice for the detected language
+    let voice = speechSynthesis.getVoices().find(voice => voice.lang.startsWith(langISO1));
+    if (!voice) {
+      console.warn(`No voice found for language: ${langISO1}, using default`);
+      voice = speechSynthesis.getVoices()[0]; // Default voice if no match
+    }
+    speech.voice = voice;
+
+    speechSynthesis.speak(speech);
+
+    // ... (Optional) Add event listeners for speech events
   };
 
   return (
