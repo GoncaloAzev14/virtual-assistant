@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');  // Added body-parser
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
+const cors = require('cors');
 
 const endpoint = process.env["AZURE_OPENAI_ENDPOINT"];
 const azureApiKey = process.env["AZURE_OPENAI_API_KEY"];
@@ -13,6 +14,13 @@ const client = new OpenAIClient(endpoint, new AzureKeyCredential(azureApiKey));
 let conversationHistory = [];
 
 const app = express();
+app.use(cors({
+  origin: '*', // Allow requests from this origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
+  credentials: true
+}));
+
 
 // Added body-parser middleware to handle JSON requests
 app.use(bodyParser.json());
